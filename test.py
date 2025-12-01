@@ -19,9 +19,7 @@ PATCH_SIZE = 4 # changed
 BATCH_SIZE = 8
 NUM_CLASSES = 2
 EPOCHS = 10 # changed
-data_dir = '../img/data_64'  # Root folder containing 'well-mixed' and 'un-mixed'
-# batch_size = 32
-
+# load dataset
 test_dataset = tf.keras.utils.image_dataset_from_directory(
     "Final Drone RF/test",
     image_size=(IMAGE_SIZE, IMAGE_SIZE),
@@ -29,7 +27,7 @@ test_dataset = tf.keras.utils.image_dataset_from_directory(
     shuffle = False
 )
 class_names = test_dataset.class_names
-
+# loading classes for loading all the weights
 def ResUnit(x):
     shortcut = x
     conv3x3 = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(x)
@@ -144,7 +142,7 @@ class TransformerBlock(layers.Layer):
         y = self.norm2(x)
         y = self.mlp(y)
         return self.add2([y, x])
-
+# load the model
 model = tf.keras.models.load_model("best_model.keras", custom_objects={
     "CNNFeatureExtractor": CNNFeatureExtractor,
     "Patches": Patches,
@@ -153,18 +151,18 @@ model = tf.keras.models.load_model("best_model.keras", custom_objects={
     "MLP": MLP
 })
 
-# --- Evaluate ---
+# evaluate the model on data set
 loss, acc = model.evaluate(test_dataset)
 print(f"Test Accuracy (Keras): {acc:.4f}")
 
-# --- True labels & predictions ---
+# set true labels and  predictions
 y_true = np.concatenate([y.numpy() for x, y in test_dataset], axis=0)
 y_pred_logits = model.predict(test_dataset)
 y_pred = np.argmax(y_pred_logits, axis=1)
 y_prob = tf.nn.softmax(y_pred_logits, axis=1).numpy()
 y_score = y_prob[:, 1]
 
-# --- Metrics ---
+#  print the metrics
 acc = accuracy_score(y_true, y_pred)
 f1 = f1_score(y_true, y_pred)
 precision = precision_score(y_true, y_pred)
@@ -177,14 +175,14 @@ print(f"Recall:    {recall:.4f}")
 print(f"F1 Score:  {f1:.4f}")
 print(f"ROC AUC:   {roc_auc:.4f}")
 
-# --- Confusion Matrix ---
+#  plot the confusion matrix 
 cm = confusion_matrix(y_true, y_pred)
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
 disp.plot(cmap=plt.cm.Blues)
 plt.title("Confusion Matrix (Test Set)")
 plt.show()
 
-# --- ROC Curve ---
+# plot ROC Curve
 fpr, tpr, thresholds = roc_curve(y_true, y_score)
 roc_auc_manual = auc(fpr, tpr)
 
@@ -198,6 +196,7 @@ plt.legend(loc="lower right")
 plt.grid(True)
 plt.show()
 
+#plot PR curve
 precision_vals, recall_vals, pr_thresholds = precision_recall_curve(y_true, y_score)
 avg_precision = average_precision_score(y_true, y_score)
 
