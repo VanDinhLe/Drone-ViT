@@ -11,7 +11,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import plot_model
 from tensorflow.keras.saving import register_keras_serializable
 
-
+#hyper Params
 IMAGE_SIZE = 320
 PATCH_SIZE = 4 # changed
 BATCH_SIZE = 8
@@ -34,7 +34,7 @@ AUTOTUNE = tf.data.AUTOTUNE
 dataset = dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 val_dataset = val_dataset.prefetch(buffer_size=tf.data.AUTOTUNE)
 
-
+# original DRNN
 def ResUnit(x):
     shortcut = x
     conv3x3 = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(x)
@@ -44,7 +44,7 @@ def ResUnit(x):
     output = layers.add([conv3x3, shortcut])
     output = layers.ReLU()(output)
     return output
-    
+# REsstack
 def ResStack(x):
     conv1x1 = layers.Conv2D(32, (1, 1), activation='linear', padding='same')(x)
 
@@ -53,8 +53,7 @@ def ResStack(x):
 
     return output
 
-# Define CNN model
-# CNN Feature Extractor
+# Define CNN model to extract the features
 @register_keras_serializable()
 class CNNFeatureExtractor(layers.Layer):
     def __init__(self, **kwargs):
@@ -74,7 +73,7 @@ class CNNFeatureExtractor(layers.Layer):
 
         x = ResStack(x)
         x = layers.MaxPooling2D((2, 2))(x)
-
+        # output 20x20x32
         self.model = tf.keras.Model(inputs, x)
 
 
@@ -101,6 +100,7 @@ class Patches(layers.Layer):
         patch_dims = patches.shape[-1]
         patches = tf.reshape(patches, [batch_size, -1, patch_dims])
         return patches
+# Embedding the patches with its position + added dense layer
 @register_keras_serializable()
 class PatchEncoder(layers.Layer):
     def __init__(self, num_patches, projection_dim):
@@ -114,13 +114,16 @@ class PatchEncoder(layers.Layer):
         encoded = self.projection(patches) + self.position_embedding(positions)
         return encoded
 
+# MLP head
 @register_keras_serializable()
 class MLP(layers.Layer):
     def __init__(self, hidden_units, dropout_rate=0.1):
         super().__init__()
         self.hidden_layers = []
         for units in hidden_units:
+            # adding non-linear
             self.hidden_layers.append(layers.Dense(units, activation="gelu"))
+            # 0.2 drop out
             self.hidden_layers.append(layers.Dropout(dropout_rate))
 
     def call(self, x):
@@ -153,7 +156,7 @@ class TransformerBlock(layers.Layer):
         return self.add2([y, x])
 
 def create_vit_classifier():
-    FEATURE_SIZE = 20
+    FEATURE_SIZE = 20 #(20x20)
     num_patches = (FEATURE_SIZE // PATCH_SIZE) ** 2
     projection_dim = 32 
     transformer_units = [projection_dim * 2, projection_dim]  # [128, 64]
